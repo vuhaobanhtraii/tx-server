@@ -389,7 +389,7 @@ function getPrediction() {
     const result = computePrediction(pat);
     if (result && history.length > 0) {
       const last = history[history.length-1];
-      const nextPhien = last.phien + 1;
+      const nextPhien = parseInt(last.phien, 10) + 1;
       engineState.lastPred = {phien:nextPhien, char:result.char, votes:result.votes};
       const total = engineState.win + engineState.loss;
       cachedPrediction = {
@@ -426,7 +426,7 @@ function fetchSource() {
       try {
         const data = JSON.parse(body);
         lastData = data;
-        const phien = data.phien;
+        const phien = parseInt(data.phien, 10);
         const ket_qua = data.ket_qua;
         if (phien !== lastPhien && ket_qua && (ket_qua==='Tài'||ket_qua==='Xỉu')) {
           weightLearn(phien, ket_qua);
