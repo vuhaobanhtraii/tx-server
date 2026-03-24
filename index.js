@@ -307,26 +307,31 @@ function computePrediction(pat) {
 
   // Chạy 84 models
   const m84 = predict84(pat, tm, sk, cT, cX);
-  let sT = m84.sT, sX = m84.sX;
 
-  // Cộng thêm votes từ adaptive pattern library
+  // Đếm số model vote TÀI vs XỈU (majority vote)
+  const votes84 = m84.votes;
+  let countT = 0, countX = 0;
+  Object.values(votes84).forEach(v => { if(v==='T') countT++; else countX++; });
+
+  // Cộng thêm votes từ adaptive pattern library (mỗi pattern = 1 vote)
   patternLib.discover(pat);
   const libVotes = patternLib.getVotes();
-  sT += libVotes.votes.T;
-  sX += libVotes.votes.X;
+  const activePatterns = Object.values(patternLib.patterns).filter(p => p.active && p.weight > 0.1);
+  activePatterns.forEach(p => { if(p.next==='T') countT++; else countX++; });
 
-  // ANTI-FAIL
+  // ANTI-FAIL: nếu đang fail streak thì đảo chiều
+  let win = countT >= countX ? 'T' : 'X';
   if (engineState.antiActive && engineState.failStreak >= 2) {
-    const rawW = sT >= sX ? 'T' : 'X';
-    if (OPP(rawW) === 'T') sT += 8; else sX += 8;
+    win = OPP(win);
     engineState.antiActive = false;
   }
 
-  const tot = sT + sX || 1;
-  const win = sT >= sX ? 'T' : 'X';
-  const conf = Math.min(0.72, Math.max(0.50, Math.max(sT,sX)/tot));
+  const total84 = countT + countX || 1;
+  const conf = Math.min(0.72, Math.max(0.50, Math.max(countT, countX) / total84));
   const pct = Math.round(conf * 100);
   const stars = pct >= 65 ? '⭐⭐⭐' : pct >= 57 ? '⭐⭐' : '⭐';
+  // Giữ sT/sX để tương thích
+  let sT = countT, sX = countX;
 
   // Tìm pattern nổi bật nhất để hiển thị reason
   const patStats = patternLib.getStats();
