@@ -187,12 +187,10 @@ function duDoanThanh(d1, d2, d3) {
 app.get('/api/dudoan', (req, res) => {
     if (lichSu.length < 2) return res.json({ error: 'Chưa đủ dữ liệu' });
 
-    // Phiên mới nhất đã có kết quả = lichSu[0]
-    // Dự đoán cho phiên tiếp theo dựa trên lichSu[0]
     const current = lichSu[0];
     const dd = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
 
-    // Tính lịch sử đúng/sai: dùng lichSu[i+1] để dự đoán lichSu[i]
+    // Tính lịch sử đúng/sai
     const history = [];
     for (let i = 0; i < Math.min(100, lichSu.length - 1); i++) {
         const thuc = lichSu[i];
@@ -207,13 +205,31 @@ app.get('/api/dudoan', (req, res) => {
         });
     }
 
+    // Đếm chuỗi sai liên tiếp gần nhất
+    let saiLienTiep = 0;
+    for (let i = 0; i < history.length; i++) {
+        if (history[i].Dung_sai === 'Sai') saiLienTiep++;
+        else break;
+    }
+
+    // Nếu sai >= 3 lần liên tiếp → đảo chiều
+    let duDoanCuoi = dd.kq;
+    let dieuChinh = false;
+    if (saiLienTiep >= 3) {
+        duDoanCuoi = dd.kq === 'Tài' ? 'Xỉu' : 'Tài';
+        dieuChinh = true;
+    }
+
     const dungCount = history.filter(h => h.Dung_sai === 'Đúng').length;
 
     res.json({
         Phien_tiep_theo: current.Phien + 1,
-        Du_doan: dd.kq,
+        Du_doan: duDoanCuoi,
+        Du_doan_goc: dd.kq,
         Xuc_xac_du_doan: { d1: dd.d1, d2: dd.d2, d3: dd.d3 },
         Tong_du_doan: dd.tong,
+        Sai_lien_tiep: saiLienTiep,
+        Dieu_chinh: dieuChinh,
         Ty_le_dung: `${dungCount}/${history.length} (${Math.round(dungCount/history.length*100)}%)`,
         Lich_su: history,
         id: '@tiendataox'
