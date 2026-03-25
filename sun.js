@@ -215,7 +215,7 @@ app.get('/api/dudoan', (req, res) => {
     // Nếu sai >= 3 lần liên tiếp → đảo chiều
     let duDoanCuoi = dd.kq;
     let dieuChinh = false;
-    if (saiLienTiep >= 3) {
+    if (saiLienTiep >= 2) {
         duDoanCuoi = dd.kq === 'Tài' ? 'Xỉu' : 'Tài';
         dieuChinh = true;
     }
