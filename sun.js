@@ -174,11 +174,53 @@ function connectWebSocket() {
     });
 }
 
-// Thuật toán Thành
-const NHA = {1:5, 2:4, 3:6, 4:2, 5:1, 6:3};
+// Thuật toán Thành - bảng nhả cố định (fallback)
+const NHA_GOC = {1:5, 2:4, 3:6, 4:2, 5:1, 6:3};
+
+// Học bảng nhả từ dữ liệu thực tế
+// Với mỗi xúc xắc X, xem phiên tiếp theo thường ra số mấy nhiều nhất
+function hocBangNha(lichSuData) {
+    // freq[x][y] = số lần xúc xắc x ở phiên trước → phiên sau có xúc xắc y
+    const freq = {};
+    for (let i = 1; i <= 6; i++) { freq[i] = {1:0,2:0,3:0,4:0,5:0,6:0}; }
+
+    for (let i = 0; i < lichSuData.length - 1; i++) {
+        const cur = lichSuData[i];
+        const next = lichSuData[i+1];
+        // Học từ từng vị trí xúc xắc
+        [cur.Xuc_xac_1, cur.Xuc_xac_2, cur.Xuc_xac_3].forEach((v, pos) => {
+            const nextVals = [next.Xuc_xac_1, next.Xuc_xac_2, next.Xuc_xac_3];
+            nextVals.forEach(nv => { if(freq[v]) freq[v][nv]++; });
+        });
+    }
+
+    // Tạo bảng nhả: x → số xuất hiện nhiều nhất sau x
+    const bangNha = {};
+    for (let x = 1; x <= 6; x++) {
+        let maxCount = 0, bestY = NHA_GOC[x];
+        for (let y = 1; y <= 6; y++) {
+            if (freq[x][y] > maxCount) { maxCount = freq[x][y]; bestY = y; }
+        }
+        bangNha[x] = bestY;
+    }
+    return bangNha;
+}
+
+function duDoanAdaptive(d1, d2, d3, bangNha) {
+    const count = {};
+    function nha(v) {
+        count[v] = (count[v]||0)+1;
+        let r = bangNha[v] - (count[v]-1);
+        return r < 1 ? 1 : r;
+    }
+    const r3=nha(d3), r2=nha(d2), r1=nha(d1);
+    const tong = r1+r2+r3;
+    return { d1:r1, d2:r2, d3:r3, tong, kq: tong>10?'Tài':'Xỉu' };
+}
+
 function duDoanThanh(d1, d2, d3) {
     const count = {};
-    function nha(v) { count[v] = (count[v]||0)+1; let r = NHA[v]-(count[v]-1); return r<1?1:r; }
+    function nha(v) { count[v] = (count[v]||0)+1; let r = NHA_GOC[v]-(count[v]-1); return r<1?1:r; }
     const r3=nha(d3), r2=nha(d2), r1=nha(d1);
     const tong = r1+r2+r3;
     return { d1:r1, d2:r2, d3:r3, tong, kq: tong>10?'Tài':'Xỉu' };
@@ -188,13 +230,19 @@ app.get('/api/dudoan', (req, res) => {
     if (lichSu.length < 2) return res.json({ error: 'Chưa đủ dữ liệu' });
 
     const current = lichSu[0];
-    const dd = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
+
+    // Học bảng nhả từ 100 phiên gần nhất
+    const bangNha = hocBangNha(lichSu.slice(0, 100));
+    const dd = duDoanAdaptive(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3, bangNha);
+    const ddGoc = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
 
     const historyTemp = [];
     for (let i = Math.min(99, lichSu.length - 2); i >= 0; i--) {
         const thuc = lichSu[i];
         const truoc = lichSu[i+1];
-        const pred = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
+        // Học bảng nhả từ các phiên trước đó
+        const bangNhaLS = hocBangNha(lichSu.slice(i+1, Math.min(i+101, lichSu.length)));
+        const pred = duDoanAdaptive(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3, bangNhaLS);
         historyTemp.push({
             Phien: thuc.Phien,
             Du_doan: pred.kq,
@@ -216,11 +264,12 @@ app.get('/api/dudoan', (req, res) => {
     res.json({
         Phien_tiep_theo: current.Phien + 1,
         Du_doan: dd.kq,
-        Du_doan_goc: dd.kq,
+        Du_doan_goc: ddGoc.kq,
+        Bang_nha: bangNha,
         Xuc_xac_du_doan: { d1: dd.d1, d2: dd.d2, d3: dd.d3 },
         Tong_du_doan: dd.tong,
         Sai_lien_tiep: saiLienTiep,
-        Dieu_chinh: false,
+        Dieu_chinh: dd.kq !== ddGoc.kq,
         Ty_le_dung: `${dungCount}/${history.length} (${Math.round(dungCount/history.length*100)}%)`,
         Lich_su: history,
         id: '@tiendataox'
