@@ -190,18 +190,28 @@ app.get('/api/dudoan', (req, res) => {
     const current = lichSu[0];
     const dd = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
 
-    // Tính lịch sử đúng/sai - KHÔNG đảo chiều, chỉ dùng thuật toán gốc
+    // Tính lịch sử từ cũ → mới để đảo chiều đúng thứ tự
     const historyTemp = [];
     for (let i = Math.min(99, lichSu.length - 2); i >= 0; i--) {
         const thuc = lichSu[i];
         const truoc = lichSu[i+1];
         const pred = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
 
+        // Đếm sai liên tiếp từ cuối mảng đã tính
+        let saiTruoc = 0;
+        for (let j = historyTemp.length - 1; j >= 0; j--) {
+            if (historyTemp[j].Dung_sai === 'Sai') saiTruoc++;
+            else break;
+        }
+
+        let duDoanLS = pred.kq;
+        if (saiTruoc >= 2) duDoanLS = pred.kq === 'Tài' ? 'Xỉu' : 'Tài';
+
         historyTemp.push({
             Phien: thuc.Phien,
-            Du_doan: pred.kq,
+            Du_doan: duDoanLS,
             Ket_qua: thuc.Ket_qua,
-            Dung_sai: pred.kq === thuc.Ket_qua ? 'Đúng' : 'Sai',
+            Dung_sai: duDoanLS === thuc.Ket_qua ? 'Đúng' : 'Sai',
             Tong_du_doan: pred.tong
         });
     }
@@ -219,9 +229,13 @@ app.get('/api/dudoan', (req, res) => {
     if (tongDD >= 9 && tongDD <= 12) doTinCay = 'Thấp';
     else if ((tongDD >= 8 && tongDD < 9) || (tongDD > 12 && tongDD <= 13)) doTinCay = 'Trung bình';
 
-    // Không đảo chiều - dùng thuật toán gốc
-    const duDoanCuoi = dd.kq;
-    const dieuChinh = false;
+    // Áp dụng đảo chiều nếu sai >= 2 liên tiếp
+    let duDoanCuoi = dd.kq;
+    let dieuChinh = false;
+    if (saiLienTiep >= 2) {
+        duDoanCuoi = dd.kq === 'Tài' ? 'Xỉu' : 'Tài';
+        dieuChinh = true;
+    }
 
     const dungCount = history.filter(h => h.Dung_sai === 'Đúng').length;
 
