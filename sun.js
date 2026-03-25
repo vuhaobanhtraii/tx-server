@@ -204,8 +204,17 @@ app.get('/api/dudoan', (req, res) => {
             else break;
         }
 
+        // Tính pattern tổng từ các phiên đã có
+        let thapTai=0,thapXiu=0,caoTai=0,caoXiu=0;
+        historyTemp.forEach(h=>{
+            if(h.Tong_du_doan<=8){h.Ket_qua==='Tài'?thapTai++:thapXiu++;}
+            else if(h.Tong_du_doan>=14){h.Ket_qua==='Tài'?caoTai++:caoXiu++;}
+        });
+
         let duDoanLS = pred.kq;
         if (saiTruoc >= 2) duDoanLS = pred.kq === 'Tài' ? 'Xỉu' : 'Tài';
+        else if (pred.tong <= 7 && thapTai > thapXiu * 1.3) duDoanLS = 'Tài';
+        else if (pred.tong >= 15 && caoXiu > caoTai * 1.3) duDoanLS = 'Xỉu';
 
         historyTemp.push({
             Phien: thuc.Phien,
@@ -229,11 +238,33 @@ app.get('/api/dudoan', (req, res) => {
     if (tongDD >= 9 && tongDD <= 12) doTinCay = 'Thấp';
     else if ((tongDD >= 8 && tongDD < 9) || (tongDD > 12 && tongDD <= 13)) doTinCay = 'Trung bình';
 
+    // Phân tích pattern từ lịch sử: tổng thấp hay cao thì kết quả thực tế thế nào
+    let tongThapTai = 0, tongThapXiu = 0; // tong <= 8
+    let tongCaoTai = 0, tongCaoXiu = 0;   // tong >= 14
+    history.forEach(h => {
+        if (h.Tong_du_doan <= 8) {
+            h.Ket_qua === 'Tài' ? tongThapTai++ : tongThapXiu++;
+        } else if (h.Tong_du_doan >= 14) {
+            h.Ket_qua === 'Tài' ? tongCaoTai++ : tongCaoXiu++;
+        }
+    });
+
     // Áp dụng đảo chiều nếu sai >= 2 liên tiếp
     let duDoanCuoi = dd.kq;
     let dieuChinh = false;
     if (saiLienTiep >= 2) {
         duDoanCuoi = dd.kq === 'Tài' ? 'Xỉu' : 'Tài';
+        dieuChinh = true;
+    }
+
+    // Nếu tổng rất thấp (≤7) và lịch sử cho thấy Tài nhiều hơn → ưu tiên Tài
+    if (!dieuChinh && dd.tong <= 7 && tongThapTai > tongThapXiu * 1.3) {
+        duDoanCuoi = 'Tài';
+        dieuChinh = true;
+    }
+    // Nếu tổng rất cao (≥15) và lịch sử cho thấy Xỉu nhiều hơn → ưu tiên Xỉu
+    if (!dieuChinh && dd.tong >= 15 && tongCaoXiu > tongCaoTai * 1.3) {
+        duDoanCuoi = 'Xỉu';
         dieuChinh = true;
     }
 
