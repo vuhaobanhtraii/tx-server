@@ -190,56 +190,38 @@ app.get('/api/dudoan', (req, res) => {
     const current = lichSu[0];
     const dd = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
 
-    // Tính lịch sử đúng/sai với logic đảo chiều
-    // lichSu[0] = mới nhất, lichSu[99] = cũ nhất
-    // Tính từ cũ → mới để đảo chiều đúng thứ tự
+    // Tính lịch sử đúng/sai - KHÔNG đảo chiều, chỉ dùng thuật toán gốc
     const historyTemp = [];
     for (let i = Math.min(99, lichSu.length - 2); i >= 0; i--) {
         const thuc = lichSu[i];
         const truoc = lichSu[i+1];
         const pred = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
 
-        // Đếm sai liên tiếp từ các phiên trước đó
-        let saiTruoc = 0;
-        for (let j = historyTemp.length - 1; j >= 0; j--) {
-            if (historyTemp[j].Dung_sai === 'Sai') saiTruoc++;
-            else break;
-        }
-
-        let duDoanCuoi = pred.kq;
-        let dieuChinh = false;
-        if (saiTruoc >= 2) {
-            duDoanCuoi = pred.kq === 'Tài' ? 'Xỉu' : 'Tài';
-            dieuChinh = true;
-        }
-
         historyTemp.push({
             Phien: thuc.Phien,
-            Du_doan: duDoanCuoi,
-            Du_doan_goc: pred.kq,
+            Du_doan: pred.kq,
             Ket_qua: thuc.Ket_qua,
-            Dung_sai: duDoanCuoi === thuc.Ket_qua ? 'Đúng' : 'Sai',
-            Dieu_chinh: dieuChinh,
+            Dung_sai: pred.kq === thuc.Ket_qua ? 'Đúng' : 'Sai',
             Tong_du_doan: pred.tong
         });
     }
-    // Đảo lại để mới nhất ở đầu
     const history = historyTemp.reverse();
 
-    // Đếm chuỗi sai liên tiếp gần nhất (sau khi đã áp dụng đảo chiều)
     let saiLienTiep = 0;
     for (let i = 0; i < history.length; i++) {
         if (history[i].Dung_sai === 'Sai') saiLienTiep++;
         else break;
     }
 
-    // Nếu sai >= 3 lần liên tiếp → đảo chiều
-    let duDoanCuoi = dd.kq;
-    let dieuChinh = false;
-    if (saiLienTiep >= 2) {
-        duDoanCuoi = dd.kq === 'Tài' ? 'Xỉu' : 'Tài';
-        dieuChinh = true;
-    }
+    // Độ tin cậy dựa trên tổng dự đoán
+    const tongDD = dd.tong;
+    let doTinCay = 'Cao';
+    if (tongDD >= 9 && tongDD <= 12) doTinCay = 'Thấp';
+    else if ((tongDD >= 8 && tongDD < 9) || (tongDD > 12 && tongDD <= 13)) doTinCay = 'Trung bình';
+
+    // Không đảo chiều - dùng thuật toán gốc
+    const duDoanCuoi = dd.kq;
+    const dieuChinh = false;
 
     const dungCount = history.filter(h => h.Dung_sai === 'Đúng').length;
 
@@ -249,6 +231,7 @@ app.get('/api/dudoan', (req, res) => {
         Du_doan_goc: dd.kq,
         Xuc_xac_du_doan: { d1: dd.d1, d2: dd.d2, d3: dd.d3 },
         Tong_du_doan: dd.tong,
+        Do_tin_cay: doTinCay,
         Sai_lien_tiep: saiLienTiep,
         Dieu_chinh: dieuChinh,
         Ty_le_dung: `${dungCount}/${history.length} (${Math.round(dungCount/history.length*100)}%)`,
