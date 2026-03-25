@@ -191,20 +191,21 @@ app.get('/api/dudoan', (req, res) => {
     const dd = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
 
     // Tính lịch sử đúng/sai với logic đảo chiều
-    const history = [];
-    for (let i = 0; i < Math.min(100, lichSu.length - 1); i++) {
+    // lichSu[0] = mới nhất, lichSu[99] = cũ nhất
+    // Tính từ cũ → mới để đảo chiều đúng thứ tự
+    const historyTemp = [];
+    for (let i = Math.min(99, lichSu.length - 2); i >= 0; i--) {
         const thuc = lichSu[i];
         const truoc = lichSu[i+1];
         const pred = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
 
-        // Đếm sai liên tiếp tính từ các phiên trước đó (history đã tính)
+        // Đếm sai liên tiếp từ các phiên trước đó
         let saiTruoc = 0;
-        for (let j = 0; j < history.length; j++) {
-            if (history[j].Dung_sai_goc === 'Sai') saiTruoc++;
+        for (let j = historyTemp.length - 1; j >= 0; j--) {
+            if (historyTemp[j].Dung_sai === 'Sai') saiTruoc++;
             else break;
         }
 
-        // Áp dụng đảo chiều nếu sai >= 2 liên tiếp
         let duDoanCuoi = pred.kq;
         let dieuChinh = false;
         if (saiTruoc >= 2) {
@@ -212,17 +213,18 @@ app.get('/api/dudoan', (req, res) => {
             dieuChinh = true;
         }
 
-        history.push({
+        historyTemp.push({
             Phien: thuc.Phien,
             Du_doan: duDoanCuoi,
             Du_doan_goc: pred.kq,
             Ket_qua: thuc.Ket_qua,
             Dung_sai: duDoanCuoi === thuc.Ket_qua ? 'Đúng' : 'Sai',
-            Dung_sai_goc: pred.kq === thuc.Ket_qua ? 'Đúng' : 'Sai',
             Dieu_chinh: dieuChinh,
             Tong_du_doan: pred.tong
         });
     }
+    // Đảo lại để mới nhất ở đầu
+    const history = historyTemp.reverse();
 
     // Đếm chuỗi sai liên tiếp gần nhất (sau khi đã áp dụng đảo chiều)
     let saiLienTiep = 0;
