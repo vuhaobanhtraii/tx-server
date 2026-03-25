@@ -229,27 +229,28 @@ app.get('/api/dudoan', (req, res) => {
     const ddThanh = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
     const pattern = duDoanPattern(lichSu);
 
-    // Kết hợp: nếu pattern có độ tin cậy >= 65% thì ưu tiên pattern, ngược lại dùng Thành
+    // Kết hợp: nếu pattern có độ tin cậy >= 65% thì ưu tiên pattern
     let duDoanCuoi = ddThanh.kq;
     let dieuChinh = false;
-    if (pattern && pattern.doTin >= 65 && pattern.duDoan !== ddThanh.kq) {
+    if (pattern && pattern.doTin >= 65) {
         duDoanCuoi = pattern.duDoan;
-        dieuChinh = true;
-    } else if (pattern && pattern.doTin >= 65) {
-        duDoanCuoi = pattern.duDoan;
+        dieuChinh = pattern.duDoan !== ddThanh.kq;
     }
 
     const historyTemp = [];
     for (let i = Math.min(499, lichSu.length - 2); i >= 0; i--) {
         const thuc = lichSu[i];
         const truoc = lichSu[i+1];
-        const pred = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
+        const predThanh = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
+        const predPattern = duDoanPattern(lichSu.slice(i+1));
+        let predFinal = predThanh.kq;
+        if (predPattern && predPattern.doTin >= 65) predFinal = predPattern.duDoan;
         historyTemp.push({
             Phien: thuc.Phien,
-            Du_doan: pred.kq,
+            Du_doan: predFinal,
             Ket_qua: thuc.Ket_qua,
-            Dung_sai: pred.kq === thuc.Ket_qua ? 'Đúng' : 'Sai',
-            Tong_du_doan: pred.tong
+            Dung_sai: predFinal === thuc.Ket_qua ? 'Đúng' : 'Sai',
+            Tong_du_doan: predThanh.tong
         });
     }
     const history = historyTemp.reverse();
