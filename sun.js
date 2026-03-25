@@ -192,8 +192,8 @@ function duDoanPattern(lichSuData) {
     const chuoi = lichSuData.map(p => p.Ket_qua === 'Tài' ? 'T' : 'X');
     let bestResult = null;
 
-    // Thử các chiều dài pattern từ 3 đến 8
-    for (let len = 3; len <= 8; len++) {
+    // Thử pattern từ dài nhất (12) xuống ngắn nhất (3)
+    for (let len = 12; len >= 3; len--) {
         if (chuoi.length < len + 2) continue;
         const patternHienTai = chuoi.slice(0, len).join('');
         let matchT = 0, matchX = 0;
@@ -207,7 +207,9 @@ function duDoanPattern(lichSuData) {
         }
 
         const total = matchT + matchX;
-        if (total < 3) continue; // Cần ít nhất 3 mẫu
+        // Pattern dài cần ít mẫu hơn vì khó lặp lại, pattern ngắn cần nhiều mẫu hơn
+        const minMau = len >= 8 ? 2 : len >= 5 ? 3 : 4;
+        if (total < minMau) continue;
 
         const doTin = Math.round(Math.max(matchT, matchX) / total * 100);
         if (!bestResult || doTin > bestResult.doTin) {
