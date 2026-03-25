@@ -25,7 +25,11 @@ const WS_HEADERS = {
     "Origin": "https://play.sun.win"
 };
 const RECONNECT_DELAY = 2500;
-const PING_INTERVAL = 15000;
+const PING_INTERVAL = 10000;
+const STALE_TIMEOUT = 90000; // reconnect nếu 90s không có phiên mới
+
+let lastDataTime = Date.now();
+let staleTimer = null;
 
 const initialMessages = [
     [
@@ -70,6 +74,13 @@ function connectWebSocket() {
                 ws.ping();
             }
         }, PING_INTERVAL);
+
+        // Reset stale timer
+        clearTimeout(staleTimer);
+        staleTimer = setTimeout(() => {
+            console.log('[⚠️] Không có dữ liệu 90s — reconnect...');
+            if (ws) ws.close();
+        }, STALE_TIMEOUT);
     });
 
     ws.on('pong', () => {
@@ -115,6 +126,13 @@ function connectWebSocket() {
             }
 
             if (cmd === 1003 && d1 && d2 && d3) {
+                // Reset stale timer khi nhận được data
+                lastDataTime = Date.now();
+                clearTimeout(staleTimer);
+                staleTimer = setTimeout(() => {
+                    console.log('[⚠️] Không có dữ liệu 90s — reconnect...');
+                    if (ws) ws.close();
+                }, STALE_TIMEOUT);
 
                 const total = d1 + d2 + d3;
                 const result = (total > 10) ? "Tài" : "Xỉu";
@@ -145,6 +163,7 @@ function connectWebSocket() {
     ws.on('close', (code, reason) => {
         console.log(`[🔌] WebSocket closed. Code: ${code}, Reason: ${reason.toString()}`);
         clearInterval(pingInterval);
+        clearTimeout(staleTimer);
         clearTimeout(reconnectTimeout);
         reconnectTimeout = setTimeout(connectWebSocket, RECONNECT_DELAY);
     });
