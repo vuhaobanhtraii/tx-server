@@ -155,6 +155,52 @@ function connectWebSocket() {
     });
 }
 
+// Thuật toán Thành
+const NHA = {1:5, 2:4, 3:6, 4:2, 5:1, 6:3};
+function duDoanThanh(d1, d2, d3) {
+    const count = {};
+    function nha(v) { count[v] = (count[v]||0)+1; let r = NHA[v]-(count[v]-1); return r<1?1:r; }
+    const r3=nha(d3), r2=nha(d2), r1=nha(d1);
+    const tong = r1+r2+r3;
+    return { d1:r1, d2:r2, d3:r3, tong, kq: tong>10?'Tài':'Xỉu' };
+}
+
+app.get('/api/dudoan', (req, res) => {
+    if (lichSu.length < 2) return res.json({ error: 'Chưa đủ dữ liệu' });
+
+    // Phiên mới nhất đã có kết quả = lichSu[0]
+    // Dự đoán cho phiên tiếp theo dựa trên lichSu[0]
+    const current = lichSu[0];
+    const dd = duDoanThanh(current.Xuc_xac_1, current.Xuc_xac_2, current.Xuc_xac_3);
+
+    // Tính lịch sử đúng/sai: dùng lichSu[i+1] để dự đoán lichSu[i]
+    const history = [];
+    for (let i = 0; i < Math.min(100, lichSu.length - 1); i++) {
+        const thuc = lichSu[i];
+        const truoc = lichSu[i+1];
+        const pred = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
+        history.push({
+            Phien: thuc.Phien,
+            Du_doan: pred.kq,
+            Ket_qua: thuc.Ket_qua,
+            Dung_sai: pred.kq === thuc.Ket_qua ? 'Đúng' : 'Sai',
+            Tong_du_doan: pred.tong
+        });
+    }
+
+    const dungCount = history.filter(h => h.Dung_sai === 'Đúng').length;
+
+    res.json({
+        Phien_tiep_theo: current.Phien + 1,
+        Du_doan: dd.kq,
+        Xuc_xac_du_doan: { d1: dd.d1, d2: dd.d2, d3: dd.d3 },
+        Tong_du_doan: dd.tong,
+        Ty_le_dung: `${dungCount}/${history.length} (${Math.round(dungCount/history.length*100)}%)`,
+        Lich_su: history,
+        id: '@tiendataox'
+    });
+});
+
 app.get('/api/ditmemaysun', (req, res) => {
     res.json(apiResponseData);
 });
