@@ -149,7 +149,7 @@ function connectWebSocket() {
 
                 // Thêm vào đầu lịch sử - giữ 500 phiên
                 lichSu.unshift({ Phien: currentSessionId, Xuc_xac_1: d1, Xuc_xac_2: d2, Xuc_xac_3: d3, Tong: total, Ket_qua: result });
-                if (lichSu.length > 500) lichSu.pop();
+                if (lichSu.length > 2000) lichSu.pop();
                 
                 console.log(`Phiên ${apiResponseData.Phien}: ${apiResponseData.Tong} (${apiResponseData.Ket_qua})`);
                 
@@ -185,15 +185,14 @@ function duDoanThanh(d1, d2, d3) {
     return { d1:r1, d2:r2, d3:r3, tong, kq: tong>10?'Tài':'Xỉu' };
 }
 
-// Pattern TXT: tìm chuỗi dài nhất có độ tin cậy cao nhất
+// Pattern TXT: ưu tiên pattern 20, giảm dần nếu không đủ mẫu
 function duDoanPattern(lichSuData) {
     if (lichSuData.length < 5) return null;
 
     const chuoi = lichSuData.map(p => p.Ket_qua === 'Tài' ? 'T' : 'X');
-    let bestResult = null;
 
-    // Thử pattern từ dài nhất (12) xuống ngắn nhất (3)
-    for (let len = 12; len >= 3; len--) {
+    // Thử từ pattern 20 xuống 3 — dừng ngay khi tìm được pattern đầu tiên đủ mẫu
+    for (let len = 20; len >= 3; len--) {
         if (chuoi.length < len + 2) continue;
         const patternHienTai = chuoi.slice(0, len).join('');
         let matchT = 0, matchX = 0;
@@ -207,21 +206,21 @@ function duDoanPattern(lichSuData) {
         }
 
         const total = matchT + matchX;
-        // Pattern dài cần ít mẫu hơn vì khó lặp lại, pattern ngắn cần nhiều mẫu hơn
-        const minMau = len >= 8 ? 2 : len >= 5 ? 3 : 4;
+        // Pattern 20 cần ít nhất 1 mẫu, ngắn dần thì cần nhiều hơn
+        const minMau = len >= 15 ? 1 : len >= 10 ? 2 : len >= 5 ? 3 : 4;
         if (total < minMau) continue;
 
         const doTin = Math.round(Math.max(matchT, matchX) / total * 100);
-        if (!bestResult || doTin > bestResult.doTin) {
-            bestResult = {
-                pattern: patternHienTai,
-                len, matchT, matchX, total,
-                duDoan: matchT >= matchX ? 'Tài' : 'Xỉu',
-                doTin
-            };
-        }
+
+        // Dừng ngay tại pattern dài nhất đủ điều kiện
+        return {
+            pattern: patternHienTai,
+            len, matchT, matchX, total,
+            duDoan: matchT >= matchX ? 'Tài' : 'Xỉu',
+            doTin
+        };
     }
-    return bestResult;
+    return null;
 }
 
 app.get('/api/dudoan', (req, res) => {
@@ -240,7 +239,7 @@ app.get('/api/dudoan', (req, res) => {
     }
 
     const historyTemp = [];
-    for (let i = Math.min(499, lichSu.length - 2); i >= 0; i--) {
+    for (let i = Math.min(1999, lichSu.length - 2); i >= 0; i--) {
         const thuc = lichSu[i];
         const truoc = lichSu[i+1];
         const predThanh = duDoanThanh(truoc.Xuc_xac_1, truoc.Xuc_xac_2, truoc.Xuc_xac_3);
