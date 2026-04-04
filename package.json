@@ -1,0 +1,12 @@
+{
+  "name": "lc79-api",
+  "version": "1.0.0",
+  "main": "lc.js",
+  "scripts": {
+    "start": "node lc.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0"
+  }
+}
