@@ -3072,6 +3072,48 @@ app.get('/reset-learning', (req, res) => {
 loadLearningData();
 loadPredictionHistory();
 
+// Thống kê tổng hợp Hũ
+app.get('/lc79-hu/thongke', (req, res) => {
+  const stats = learningData.hu;
+  const verifiedPredictions = stats.predictions.filter(p => p.verified === true);
+  const dung = verifiedPredictions.filter(p => p.isCorrect === true).length;
+  const sai = verifiedPredictions.filter(p => p.isCorrect === false).length;
+  const tyLe = verifiedPredictions.length > 0 ? ((dung / verifiedPredictions.length) * 100).toFixed(1) : 0;
+  
+  res.json({
+    type: 'THỐNG KÊ TỰ HỌC (HŨ)',
+    tong_du_doan_da_co_ket_qua: verifiedPredictions.length,
+    so_lan_dung: dung,
+    so_lan_sai: sai,
+    ty_le_chinh_xac: `${tyLe}%`,
+    chuoi_thang_thua_hien_tai: stats.streakAnalysis.currentStreak,
+    chuoi_thang_cao_nhat: stats.streakAnalysis.bestStreak,
+    chuoi_thua_cao_nhat: Math.abs(stats.streakAnalysis.worstStreak),
+    cap_nhat_cuoi: stats.lastUpdate
+  });
+});
+
+// Thống kê tổng hợp MD5
+app.get('/lc79-md5/thongke', (req, res) => {
+  const stats = learningData.md5;
+  const verifiedPredictions = stats.predictions.filter(p => p.verified === true);
+  const dung = verifiedPredictions.filter(p => p.isCorrect === true).length;
+  const sai = verifiedPredictions.filter(p => p.isCorrect === false).length;
+  const tyLe = verifiedPredictions.length > 0 ? ((dung / verifiedPredictions.length) * 100).toFixed(1) : 0;
+  
+  res.json({
+    type: 'THỐNG KÊ TỰ HỌC (MD5)',
+    tong_du_doan_da_co_ket_qua: verifiedPredictions.length,
+    so_lan_dung: dung,
+    so_lan_sai: sai,
+    ty_le_chinh_xac: `${tyLe}%`,
+    chuoi_thang_thua_hien_tai: stats.streakAnalysis.currentStreak,
+    chuoi_thang_cao_nhat: stats.streakAnalysis.bestStreak,
+    chuoi_thua_cao_nhat: Math.abs(stats.streakAnalysis.worstStreak),
+    cap_nhat_cuoi: stats.lastUpdate
+  });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log('Lau Cua 79 - Advanced Tai Xiu Prediction API v4.0');
